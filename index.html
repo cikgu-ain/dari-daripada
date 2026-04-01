@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Sebutan Bandar</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: sans-serif;
+    background: linear-gradient(#87CEEB, #ffffff);
+    text-align: center;
+}
+
+#game {
+    max-width: 500px;
+    margin: auto;
+    padding: 10px;
+}
+
+#road {
+    position: relative;
+    height: 150px;
+    background: #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#car {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    font-size: 40px;
+    transition: left 1s;
+}
+
+#obstacle {
+    position: absolute;
+    right: 20px;
+    bottom: 10px;
+    font-size: 40px;
+}
+
+#sentence {
+    margin: 15px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+button {
+    padding: 15px;
+    font-size: 18px;
+    margin: 10px;
+    border-radius: 10px;
+    border: none;
+}
+
+#micBtn {
+    background: red;
+    color: white;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+}
+
+#nextBtn {
+    display: none;
+    background: green;
+    color: white;
+}
+
+#score, #level {
+    font-size: 18px;
+    margin: 5px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="game">
+    <h2>🚗 Game Sebutan Bandar</h2>
+    <div id="level"></div>
+    <div id="score">Markah: 0</div>
+
+    <div id="road">
+        <div id="car">🚗</div>
+        <div id="obstacle">🚧</div>
+    </div>
+
+    <div id="sentence"></div>
+
+    <button id="micBtn">🎤</button>
+    <br>
+    <button id="nextBtn">Tahap Seterusnya</button>
+
+    <p id="status"></p>
+</div>
+
+<script>
+const sentences = [
+"Murid-murid membersihkan kawasan sekolah dari pagi hingga tengah hari",
+"Bau busuk itu datang dari tong sampah di belakang kantin",
+"Mereka mengutip sampah dari kawasan longkang yang kotor",
+"Penyapu itu dipinjam daripada pekerja kebersihan sekolah",
+"Sampah sarap itu dikumpulkan daripada kawasan taman permainan",
+"Kawasan sekolah kini lebih bersih daripada sebelumnya",
+"Murid-murid datang dari arah dewan untuk menyertai gotong-royong",
+"Nasihat tentang kebersihan itu diberikan daripada guru disiplin",
+"Air yang mengalir dari paip digunakan untuk mencuci lantai",
+"Usaha menjaga kebersihan lebih baik daripada hanya bercakap sahaja"
+];
+
+let currentLevel = 0;
+let score = 0;
+
+const sentenceDiv = document.getElementById("sentence");
+const scoreDiv = document.getElementById("score");
+const levelDiv = document.getElementById("level");
+const statusDiv = document.getElementById("status");
+const car = document.getElementById("car");
+const micBtn = document.getElementById("micBtn");
+const nextBtn = document.getElementById("nextBtn");
+
+function updateUI() {
+    sentenceDiv.textContent = sentences[currentLevel];
+    levelDiv.textContent = "Tahap " + (currentLevel + 1) + " / " + sentences.length;
+    scoreDiv.textContent = "Markah: " + score;
+    car.style.left = "10px";
+    nextBtn.style.display = "none";
+}
+
+updateUI();
+
+// Speech Recognition Setup
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (!SpeechRecognition) {
+    alert("Pelayar ini tidak menyokong pengecaman suara. Sila gunakan Google Chrome.");
+}
+
+const recognition = new SpeechRecognition();
+recognition.lang = "ms-MY";
+recognition.continuous = false;
+recognition.interimResults = false;
+
+// Audio Effects
+const successSound = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+const failSound = new Audio("https://actions.google.com/sounds/v1/cartoon/crash.ogg");
+
+// Similarity Function
+function similarity(a, b) {
+    a = a.toLowerCase();
+    b = b.toLowerCase();
+
+    let matches = 0;
+    let wordsA = a.split(" ");
+    let wordsB = b.split(" ");
+
+    wordsA.forEach(word => {
+        if (wordsB.includes(word)) matches++;
+    });
+
+    return matches / wordsA.length;
+}
+
+// Microphone Button
+micBtn.addEventListener("click", async () => {
+
+    try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+        statusDiv.textContent = "Sila benarkan akses mikrofon untuk bermain permainan ini.";
+        return;
+    }
+
+    recognition.start();
+    statusDiv.textContent = "Sedang mendengar...";
+});
+
+// Result
+recognition.onresult = function(event) {
+    let spoken = event.results[0][0].transcript;
+    let target = sentences[currentLevel];
+
+    let scoreMatch = similarity(spoken, target);
+
+    if (scoreMatch > 0.75) {
+        statusDiv.textContent = "Betul! 🎉";
+        score += 10;
+        car.style.left = "300px";
+        successSound.play();
+        nextBtn.style.display = "inline-block";
+        scoreDiv.textContent = "Markah: " + score;
+    } else {
+        statusDiv.textContent = "Salah! Cuba lagi.";
+        failSound.play();
+    }
+};
+
+// Error handling
+recognition.onerror = function(event) {
+    console.error(event.error);
+    if (event.error === "no-speech") {
+        statusDiv.textContent = "Tiada suara dikesan. Sila cuba lagi.";
+    }
+};
+
+// Next Level
+nextBtn.addEventListener("click", () => {
+    currentLevel++;
+    if (currentLevel < sentences.length) {
+        updateUI();
+        statusDiv.textContent = "";
+    } else {
+        sentenceDiv.textContent = "🎉 Tahniah! Permainan Tamat!";
+        nextBtn.style.display = "none";
+    }
+});
+</script>
+
+</body>
+</html>
